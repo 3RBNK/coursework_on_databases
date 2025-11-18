@@ -114,6 +114,7 @@ class Classroom(Base):
     class_name = Column(String(255), nullable=False, unique=True)
 
     classroom_type = relationship("ClassroomType", back_populates="classroom")
+    schedules = relationship("Schedule", back_populates="classroom")
 
 
 class EducationForm(Base):
@@ -224,13 +225,23 @@ class TimeSlot(Base):
     schedule = relationship("Schedule", back_populates="time_slot")
 
 
+class LessonType(Base):
+    __tablename__ = "lesson_type"
+
+    lesson_type_id = Column(INTEGER, primary_key=True)
+    lesson_type_name = Column(String(255), nullable=False, unique=True)
+
+    schedules = relationship("Schedule", back_populates="lesson_type")
+
 class Schedule(Base):
     __tablename__ = "schedule"
 
     schedule_id = Column(INTEGER, primary_key=True)
-    study_group_id = Column(INTEGER, ForeignKey("study_group.study_group_id"), nullable=False)
+    study_group_id = Column(INTEGER, ForeignKey("study_group.group_id"), nullable=False)
     teacher_id = Column(INTEGER, ForeignKey("teacher.teacher_id"), nullable=False)
     subject_id = Column(INTEGER, ForeignKey("subject.subject_id"), nullable=False)
+    lesson_type_id = Column(INTEGER, ForeignKey("lesson_type.lesson_type_id"), nullable=False)
+    classroom_id = Column(INTEGER, ForeignKey("classroom.class_id"), nullable=False)
     time_slot_id = Column(INTEGER, ForeignKey("time_slot.time_slot_id"), nullable=False)
     day_of_week = Column(Integer, nullable=False)
 
@@ -243,3 +254,5 @@ class Schedule(Base):
     teacher = relationship("Teacher", back_populates="schedule")
     subject = relationship("Subject", back_populates="schedule")
     time_slot = relationship("TimeSlot", back_populates="schedule")
+    lesson_type = relationship("LessonType", back_populates="schedules")
+    classroom = relationship("Classroom", back_populates="schedules")
