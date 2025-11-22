@@ -3,15 +3,15 @@ from flask_login import LoginManager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-from my_university.config import get_db_url
-from my_university.models import Base, User
+from my_university.config import get_db_url, get_secret_key
+from my_university.models import User
 
 engine = create_engine(get_db_url())
 Session = sessionmaker(bind=engine)
 db_session = scoped_session(Session)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'Ltkfektqijlkj2u9345knjgauo3'
+app.config['SECRET_KEY'] = get_secret_key()
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'main.login'
