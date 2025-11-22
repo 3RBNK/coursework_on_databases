@@ -4,6 +4,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     relationship, DeclarativeBase
 )
+from flask_login import UserMixin
 
 
 class Base(DeclarativeBase): pass
@@ -24,7 +25,7 @@ class UserType(Base):
     users = relationship("User", back_populates="user_type_ref")
 
 
-class User(Base):
+class User(Base, UserMixin):
     __tablename__ = "user"
 
     user_id = Column(INTEGER, primary_key=True)
@@ -37,6 +38,8 @@ class User(Base):
     student = relationship("Student", back_populates="user", uselist=False, cascade="all, delete-orphan")
     admin = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
+    def get_id(self):
+        return str(self.user_id)
 
 class Admin(Base):
     __tablename__ = "admin"

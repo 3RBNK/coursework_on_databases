@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from werkzeug.security import generate_password_hash
 from my_university.config import get_db_url
-from my_university.db_class import (
+from my_university.models import (
     Base,
+    User, Admin,
     ClassroomType, LessonType,
     UserType, EducationForm,
     AssessmentType, TimeSlot,
@@ -31,7 +33,7 @@ def seed_database():
 
         class_types_to_add = [
             ClassroomType(classroom_name="Лекционная аудитория"),
-            ClassroomType(classroom_name="Класс для практических заняzтий"),
+            ClassroomType(classroom_name="Класс для практических занятий"),
             ClassroomType(classroom_name="Компьютерный класс"),
             ClassroomType(classroom_name="Лаборатория"),
         ]
@@ -124,4 +126,43 @@ def seed_database():
         print("Соединение с БД закрыто.")
 
 
+def create_super_admin():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from my_university.config import get_db_url
+
+    engine = create_engine(get_db_url())
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        if not session.query(User).filter_by(hash_login='admin').first():
+            admin_type = session.query(UserType).filter_by(type_name='admin').first()
+
+            admin_user = User(
+                hash_login='admin',
+                hash_password=generate_password_hash('admin'),
+                user_type_id=admin_type.user_type_id
+            )
+            session.add(admin_user)
+            session.flush()
+
+            new_admin = Admin(
+                user_id=admin_user.user_id,
+                full_name='Главный Администратор'
+            )
+            session.add(new_admin)
+
+            session.commit()
+            print("Админ создан: Логин 'admin', Пароль 'admin'")
+        else:
+            print("Администратор уже существует.")
+
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        session.rollback()
+    finally:
+        session.close()
+
 seed_database()
+create_super_admin()

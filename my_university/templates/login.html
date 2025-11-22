@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Вход - MyUni{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">Вход</h3>
+
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.login.label(class="form-label") }}
+                        {{ form.login(class="form-control", placeholder="Введите логин") }}
+                        {% for error in form.login.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control", placeholder="Введите пароль") }}
+                        {% for error in form.password.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center text-muted small">
+                Для получения доступа обратитесь в деканат.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

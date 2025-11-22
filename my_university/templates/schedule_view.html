@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+{% if schedules %}
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>День</th>
+                <th>Время</th>
+                <th>Предмет</th>
+                <th>Тип</th>
+                <th>Группа</th>
+                <th>Преподаватель</th>
+                <th>Аудитория</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in schedules %}
+            <tr>
+                <td class="fw-bold">{{ days[item.day_of_week] }}</td>
+                <td>
+                    {{ item.time_slot.time_start.strftime('%H:%M') }} -
+                    {{ item.time_slot.time_end.strftime('%H:%M') }}
+                </td>
+                <td>{{ item.subject.subject_name }}</td>
+                <td><span class="badge bg-secondary">{{ item.lesson_type.lesson_type_name }}</span></td>
+                <td>{{ item.study_group.group_name }}</td>
+                <td>{{ item.teacher.full_name }}</td>
+                <td>{{ item.classroom.class_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <div class="alert alert-info">Расписание пока пусто.</div>
+{% endif %}
+
+{% if current_user.user_type_ref.type_name == 'admin' %}
+    <a href="/schedule/manage" class="btn btn-warning mt-3">Редактировать расписание</a>
+{% endif %}
+
+{% endblock %}

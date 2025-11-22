@@ -1,12 +1,8 @@
 import configparser
-import os
 from pathlib import Path
 
 
 def get_db_url():
-    """
-    Читает конфигурацию из файла config.ini, строит URL для подключения.
-    """
     try:
         base_dir = Path(__file__).resolve().parent.parent
         config_path = base_dir / 'config.ini'

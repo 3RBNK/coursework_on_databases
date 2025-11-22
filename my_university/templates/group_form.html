@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">{{ title }}</div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.group_name.label(class="form-label") }}
+                        {{ form.group_name(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.group_course.label(class="form-label") }}
+                        {{ form.group_course(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.curriculum_id.label(class="form-label") }}
+                        {{ form.curriculum_id(class="form-select") }}
+                        <div class="form-text">Если список пуст, сначала создайте Учебный план в БД.</div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="mt-2">
+            <a href="/groups">← Назад к списку</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

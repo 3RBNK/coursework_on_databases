@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Создание пользователя - MyUni{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">Новый пользователь</h3>
+
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.login.label(class="form-label") }}
+                        {{ form.login(class="form-control", placeholder="user123") }}
+                        {% for error in form.login.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            {{ form.password(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.confirm_password.label(class="form-label") }}
+                            {{ form.confirm_password(class="form-control") }}
+                            {% for error in form.confirm_password.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.full_name.label(class="form-label") }}
+                        {{ form.full_name(class="form-control", placeholder="Иванов Иван Иванович") }}
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        {{ form.role.label(class="form-label fw-bold") }}
+                        {{ form.role(class="form-select", id="roleSelect") }}
+                    </div>
+
+                    <div class="mb-3 p-3 border rounded bg-light" id="studentBlock">
+                        <label class="form-label text-primary fw-bold">Данные студента</label>
+                        <div class="mb-2">
+                            {{ form.group_id.label(class="form-label") }}
+                            {{ form.group_id(class="form-select") }}
+                        </div>
+                        <div class="form-text small">Выберите учебную группу из списка.</div>
+                    </div>
+
+                    <div class="mb-3 p-3 border rounded bg-light" id="teacherBlock" style="display: none;">
+                        <label class="form-label text-success fw-bold">Данные преподавателя</label>
+                        <div class="mb-2">
+                            {{ form.department_id.label(class="form-label") }}
+                            {{ form.department_id(class="form-select") }}
+                        </div>
+                        <div class="form-text small">Укажите кафедру сотрудника.</div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        {{ form.submit(class="btn btn-success btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const roleSelect = document.getElementById('roleSelect');
+        const studentBlock = document.getElementById('studentBlock');
+        const teacherBlock = document.getElementById('teacherBlock');
+
+        function toggleFields() {
+            // Сначала скрываем всё
+            studentBlock.style.display = 'none';
+            teacherBlock.style.display = 'none';
+
+            // Показываем нужное
+            if (roleSelect.value === 'student') {
+                studentBlock.style.display = 'block';
+            } else if (roleSelect.value === 'teacher') {
+                teacherBlock.style.display = 'block';
+            }
+            // Если admin - ничего не показываем, так и должно быть
+        }
+
+        // Запускаем при загрузке страницы
+        toggleFields();
+
+        // Запускаем при изменении выбора
+        roleSelect.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock %}

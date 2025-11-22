@@ -11,6 +11,9 @@ dependencies = [
     "typing-extensions>=4.15.0",
     "psycopg2>=2.9.11",
     "flask>=3.1.2",
+    "flask-wtf>=1.2.2",
+    "flask-login>=0.6.3",
+    "email-validator>=2.3.0",
 ]
 
 [tool.setuptools.packages.find]
