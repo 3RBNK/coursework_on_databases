@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Список аудиторий</h2>
+    <a href="/classrooms/new" class="btn btn-primary">Добавить аудиторию</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Номер/Название</th>
+                    <th>Тип</th>
+                    <th class="text-end">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for room in classrooms %}
+                <tr>
+                    <td class="fw-bold">{{ room.class_name }}</td>
+                    <td><span class="badge bg-info text-dark">{{ room.classroom_type.classroom_name }}</span></td>
+                    <td class="text-end">
+                        <form action="/classrooms/{{ room.class_id }}/delete" method="POST" class="d-inline" onsubmit="return confirm('Удалить аудиторию {{ room.class_name }}?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">Аудиторий пока нет.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

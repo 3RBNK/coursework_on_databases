@@ -10,9 +10,9 @@ from my_university.models import (
     Admin, TimeSlot,
     Schedule, Classroom,
     LessonType, Subject,
-    Curriculum
+    Curriculum, ClassroomType
 )
-from my_university.forms import LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm
+from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm, ClassroomForm)
 from my_university.main import db_session
 
 bp = Blueprint('main', __name__)
@@ -319,3 +319,62 @@ def group_delete(group_id):
             flash('Нельзя удалить группу, в которой есть студенты или расписание!', 'danger')
 
     return redirect(url_for('main.groups_list'))
+
+
+@bp.route('/classrooms')
+@login_required
+def classrooms_list():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    # Загружаем аудитории и сортируем по названию
+    classrooms = db_session.query(Classroom).order_by(Classroom.class_name).all()
+    return render_template('classrooms_list.html', classrooms=classrooms)
+
+
+@bp.route('/classrooms/new', methods=['GET', 'POST'])
+@login_required
+def classroom_create():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    form = ClassroomForm()
+
+    # Заполняем список типов аудиторий из БД (Лекционная, Компьютерная...)
+    types = db_session.query(ClassroomType).all()
+    form.class_type_id.choices = [(t.classroom_id, t.classroom_name) for t in types]
+
+    if form.validate_on_submit():
+        try:
+            new_classroom = Classroom(
+                class_name=form.class_name.data,
+                class_type_id=form.class_type_id.data
+            )
+            db_session.add(new_classroom)
+            db_session.commit()
+            flash(f'Аудитория {new_classroom.class_name} создана!', 'success')
+            return redirect(url_for('main.classrooms_list'))
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Ошибка: {e}', 'danger')
+
+    return render_template('classroom_form.html', form=form, title="Новая аудитория")
+
+
+@bp.route('/classrooms/<int:cls_id>/delete', methods=['POST'])
+@login_required
+def classroom_delete(cls_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    classroom = db_session.query(Classroom).get(cls_id)
+    if classroom:
+        try:
+            db_session.delete(classroom)
+            db_session.commit()
+            flash('Аудитория удалена.', 'success')
+        except Exception:
+            db_session.rollback()
+            flash('Нельзя удалить аудиторию, если в ней уже стоят занятия в расписании!', 'danger')
+
+    return redirect(url_for('main.classrooms_list'))

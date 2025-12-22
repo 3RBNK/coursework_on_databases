@@ -36,4 +36,4 @@ def register_blueprints():
 if __name__ == '__main__':
     register_blueprints()
     print("Запуск сервера...")
-    app.run(debug=True, port=5001)
+    app.run(debug=True, host="0.0.0.0", port=5001)

@@ -70,3 +70,12 @@ class StudyGroupForm(FlaskForm):
     curriculum_id = SelectField('Учебный план', coerce=int, validators=[DataRequired()])
 
     submit = SubmitField('Сохранить')
+
+
+class ClassroomForm(FlaskForm):
+    """Форма для добавления/редактирования аудитории"""
+    class_name = StringField('Номер/Название аудитории', validators=[DataRequired(), Length(max=50)])
+
+    class_type_id = SelectField('Тип аудитории', coerce=int, validators=[DataRequired()])
+
+    submit = SubmitField('Сохранить')
