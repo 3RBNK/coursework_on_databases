@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, URLField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, URLField, DateField
 from wtforms.validators import DataRequired, Length, EqualTo, Optional, URL
 
 
@@ -97,3 +97,22 @@ class MaterialUploadForm(FlaskForm):
                         validators=[Optional(), URL(message="Введите корректный URL (начинается с http/https)")])
 
     submit = SubmitField('Сохранить')
+
+
+class CurriculumForm(FlaskForm):
+    """Форма создания самого плана (Заголовок)"""
+    education_level = StringField('Уровень образования (например: Бакалавриат ИВТ)', validators=[DataRequired()])
+    education_form_id = SelectField('Форма обучения', coerce=int, validators=[DataRequired()])
+    approval_year = DateField('Дата утверждения', format='%Y-%m-%d', validators=[DataRequired()])
+
+    submit = SubmitField('Создать план')
+
+
+class CurriculumDetailForm(FlaskForm):
+    """Форма добавления предмета в план"""
+    semester = IntegerField('Семестр (число)', validators=[DataRequired()])
+    subject_id = SelectField('Предмет', coerce=int, validators=[DataRequired()])
+    assessment_type_id = SelectField('Тип аттестации', coerce=int, validators=[DataRequired()])
+    hours_lecture = IntegerField('Часов нагрузки', validators=[DataRequired()])
+
+    submit = SubmitField('Добавить предмет')

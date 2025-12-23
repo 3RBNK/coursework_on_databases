@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Учебные планы</h2>
+    <a href="/curriculums/new" class="btn btn-primary">Создать план</a>
+</div>
+
+<div class="list-group">
+    {% for curr in curriculums %}
+    <a href="/curriculums/{{ curr.curriculum_id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-1">{{ curr.education_level }}</h5>
+            <small class="text-muted">{{ curr.approval_year }} | {{ curr.education_form.education_form_name }}</small>
+        </div>
+        <span class="badge bg-secondary rounded-pill">Настроить</span>
+    </a>
+    {% else %}
+    <p class="text-center text-muted">Планов пока нет.</p>
+    {% endfor %}
+</div>
+{% endblock %}

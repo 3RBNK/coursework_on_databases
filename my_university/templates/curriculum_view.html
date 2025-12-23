@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h3>Учебный план: <span class="text-primary">{{ curriculum.education_level }}</span></h3>
+    <p class="text-muted">
+        Форма: {{ curriculum.education_form.education_form_name }} |
+        Утвержден: {{ curriculum.approval_year }}
+    </p>
+    <a href="/curriculums" class="btn btn-outline-secondary btn-sm">Назад к списку</a>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm sticky-top" style="top: 20px;">
+            <div class="card-header bg-success text-white">Добавить предмет</div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.semester.label(class="form-label") }}
+                        {{ form.semester(class="form-control", placeholder="Например: 1") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.subject_id.label(class="form-label") }}
+                        {{ form.subject_id(class="form-select") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.hours_lecture.label(class="form-label") }}
+                        {{ form.hours_lecture(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.assessment_type_id.label(class="form-label") }}
+                        {{ form.assessment_type_id(class="form-select") }}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header">Состав плана</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Сем.</th>
+                            <th>Предмет</th>
+                            <th>Часы</th>
+                            <th>Аттестация</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in details %}
+                        <tr>
+                            <td class="fw-bold text-center">{{ detail.semester }}</td>
+                            <td>{{ detail.subject.subject_name }}</td>
+                            <td>{{ detail.hours_lecture }} ч.</td>
+                            <td><span class="badge bg-info text-dark">{{ detail.assessment_type.assessment_type_name }}</span></td>
+                            <td class="text-end">
+                                <form action="/curriculums/detail/{{ detail.curriculum_detail_id }}/delete" method="POST" onsubmit="return confirm('Удалить?');">
+                                    <button class="btn btn-sm btn-outline-danger">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center p-4">План пуст. Добавьте предметы слева.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

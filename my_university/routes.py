@@ -13,10 +13,10 @@ from my_university.models import (
     Schedule, Classroom,
     LessonType, Subject,
     Curriculum, ClassroomType,
-    EducationMaterial, EducationMaterialType,
+    EducationMaterial, EducationMaterialType, CurriculumDetail, AssessmentType, EducationForm,
 )
 from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm,
-                                 ClassroomForm, MaterialUploadForm, SubjectForm)
+                                 ClassroomForm, MaterialUploadForm, SubjectForm, CurriculumDetailForm, CurriculumForm)
 from my_university.main import db_session
 from my_university.s3_client import upload_file_to_minio, get_file_content
 
@@ -520,3 +520,98 @@ def subject_delete(sub_id):
             flash('Нельзя удалить предмет, который уже используется в расписании или материалах!', 'danger')
 
     return redirect(url_for('main.subjects_list'))
+
+
+@bp.route('/curriculums')
+@login_required
+def curriculums_list():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    curriculums = db_session.query(Curriculum).order_by(Curriculum.approval_year.desc()).all()
+    return render_template('curriculums_list.html', curriculums=curriculums)
+
+
+@bp.route('/curriculums/new', methods=['GET', 'POST'])
+@login_required
+def curriculum_create():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    form = CurriculumForm()
+    edu_forms = db_session.query(EducationForm).all()
+    form.education_form_id.choices = [(ef.education_form_id, ef.education_form_name) for ef in edu_forms]
+
+    if form.validate_on_submit():
+        try:
+            new_curr = Curriculum(
+                education_level=form.education_level.data,
+                education_form_id=form.education_form_id.data,
+                approval_year=form.approval_year.data
+            )
+            db_session.add(new_curr)
+            db_session.commit()
+            flash('Учебный план создан! Теперь наполните его предметами.', 'success')
+            return redirect(url_for('main.curriculum_view', curr_id=new_curr.curriculum_id))
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Ошибка: {e}', 'danger')
+
+    return render_template('curriculum_form.html', form=form, title="Новый учебный план")
+
+
+@bp.route('/curriculums/<int:curr_id>', methods=['GET', 'POST'])
+@login_required
+def curriculum_view(curr_id):
+    """Страница просмотра и наполнения конкретного плана"""
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    curriculum = db_session.query(Curriculum).get(curr_id)
+    if not curriculum:
+        abort(404)
+
+    form = CurriculumDetailForm()
+
+    form.subject_id.choices = [(s.subject_id, s.subject_name) for s in
+                               db_session.query(Subject).order_by(Subject.subject_name).all()]
+    form.assessment_type_id.choices = [(a.assessment_type_id, a.assessment_type_name) for a in
+                                       db_session.query(AssessmentType).all()]
+
+    if form.validate_on_submit():
+        try:
+            detail = CurriculumDetail(
+                curriculum_id=curr_id,
+                subject_id=form.subject_id.data,
+                assessment_type_id=form.assessment_type_id.data,
+                semester=form.semester.data,
+                hours_lecture=form.hours_lecture.data
+            )
+            db_session.add(detail)
+            db_session.commit()
+            flash('Предмет добавлен в план.', 'success')
+            return redirect(url_for('main.curriculum_view', curr_id=curr_id))
+        except Exception as e:
+            db_session.rollback()
+
+            flash(f'Ошибка: Возможно, этот предмет уже есть в этом семестре. {e}', 'danger')
+
+    details = db_session.query(CurriculumDetail) \
+        .filter_by(curriculum_id=curr_id) \
+        .order_by(CurriculumDetail.semester, CurriculumDetail.subject_id).all()
+
+    return render_template('curriculum_view.html', curriculum=curriculum, details=details, form=form)
+
+
+@bp.route('/curriculums/detail/<int:detail_id>/delete', methods=['POST'])
+@login_required
+def curriculum_detail_delete(detail_id):
+    """Удаление предмета из плана"""
+    detail = db_session.query(CurriculumDetail).get(detail_id)
+    if detail:
+        curr_id = detail.curriculum_id
+        db_session.delete(detail)
+        db_session.commit()
+        flash('Предмет удален из плана.', 'success')
+        return redirect(url_for('main.curriculum_view', curr_id=curr_id))
+    return redirect(url_for('main.curriculums_list'))
