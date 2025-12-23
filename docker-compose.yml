@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: unidesk_app
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+    depends_on:
+      - db
+      - minio
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:14
+    container_name: unidesk_db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  minio:
+    image: minio/minio:latest
+    container_name: unidesk_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:

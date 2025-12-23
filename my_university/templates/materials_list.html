@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Учебные материалы</h2>
+    {% if current_user.user_type_ref.type_name == 'teacher' %}
+        <a href="/materials/upload" class="btn btn-success">Загрузить файл</a>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% for mat in materials %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">{{ mat.education_material_name }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{ mat.subject.subject_name }}</h6>
+                <p class="card-text">
+                    <span class="badge bg-secondary">{{ mat.education_material_type.education_material_type_name }}</span>
+                    <br>
+                    <small>Преподаватель: {{ mat.teacher.full_name }}</small>
+                </p>
+                <a href="/materials/download/{{ mat.education_material_id }}" class="btn btn-primary w-100" target="_blank">
+                    Скачать
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <p class="text-center text-muted">Файлов нет.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

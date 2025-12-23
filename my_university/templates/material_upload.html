@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">Загрузка материала</div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.material_name.label(class="form-label") }}
+                        {{ form.material_name(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.subject_id.label(class="form-label") }}
+                        {{ form.subject_id(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.type_id.label(class="form-label") }}
+                        {{ form.type_id(class="form-select", id="typeSelector") }}
+                    </div>
+
+                    <div class="mb-3" id="fileBlock">
+                        {{ form.file.label(class="form-label") }}
+                        {{ form.file(class="form-control") }}
+                        <div class="form-text">Выберите файл для загрузки.</div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="linkBlock">
+                        {{ form.link_url.label(class="form-label") }}
+                        {{ form.link_url(class="form-control", placeholder="https://example.com") }}
+                        <div class="form-text">Вставьте прямую ссылку на ресурс.</div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('typeSelector');
+        const fileBlock = document.getElementById('fileBlock');
+        const linkBlock = document.getElementById('linkBlock');
+
+        function toggleFields() {
+            const selectedText = typeSelect.options[typeSelect.selectedIndex].text;
+
+            if (selectedText.toLowerCase().includes('ссылка')) {
+                fileBlock.classList.add('d-none');
+                linkBlock.classList.remove('d-none');
+            } else {
+                fileBlock.classList.remove('d-none');
+                linkBlock.classList.add('d-none');
+            }
+        }
+
+        typeSelect.addEventListener('change', toggleFields);
+        toggleFields();
+    });
+</script>
+{% endblock %}

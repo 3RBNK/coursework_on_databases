@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField
-from wtforms.validators import DataRequired, Length, EqualTo, Optional
+from flask_wtf.file import FileField, FileRequired
+from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, URLField
+from wtforms.validators import DataRequired, Length, EqualTo, Optional, URL
 
 
 class LoginForm(FlaskForm):
@@ -72,10 +73,27 @@ class StudyGroupForm(FlaskForm):
     submit = SubmitField('Сохранить')
 
 
+class SubjectForm(FlaskForm):
+    """Форма создания предмета"""
+    subject_name = StringField('Название предмета', validators=[DataRequired()])
+    submit = SubmitField('Сохранить')
+
+
 class ClassroomForm(FlaskForm):
     """Форма для добавления/редактирования аудитории"""
     class_name = StringField('Номер/Название аудитории', validators=[DataRequired(), Length(max=50)])
 
     class_type_id = SelectField('Тип аудитории', coerce=int, validators=[DataRequired()])
+
+    submit = SubmitField('Сохранить')
+
+
+class MaterialUploadForm(FlaskForm):
+    subject_id = SelectField('Предмет', coerce=int, validators=[DataRequired()])
+    type_id = SelectField('Тип материала', coerce=int, validators=[DataRequired()])
+    material_name = StringField('Название', validators=[DataRequired()])
+    file = FileField('Файл', validators=[Optional()])
+    link_url = URLField('Ссылка на ресурс',
+                        validators=[Optional(), URL(message="Введите корректный URL (начинается с http/https)")])
 
     submit = SubmitField('Сохранить')

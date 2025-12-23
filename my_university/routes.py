@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from sqlalchemy import exc
+import mimetypes
 
 from my_university.models import (
     User, Student,
@@ -10,10 +12,13 @@ from my_university.models import (
     Admin, TimeSlot,
     Schedule, Classroom,
     LessonType, Subject,
-    Curriculum, ClassroomType
+    Curriculum, ClassroomType,
+    EducationMaterial, EducationMaterialType,
 )
-from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm, ClassroomForm)
+from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm,
+                                 ClassroomForm, MaterialUploadForm, SubjectForm)
 from my_university.main import db_session
+from my_university.s3_client import upload_file_to_minio, get_file_content
 
 bp = Blueprint('main', __name__)
 
@@ -327,7 +332,6 @@ def classrooms_list():
     if current_user.user_type_ref.type_name != 'admin':
         abort(403)
 
-    # Загружаем аудитории и сортируем по названию
     classrooms = db_session.query(Classroom).order_by(Classroom.class_name).all()
     return render_template('classrooms_list.html', classrooms=classrooms)
 
@@ -340,7 +344,6 @@ def classroom_create():
 
     form = ClassroomForm()
 
-    # Заполняем список типов аудиторий из БД (Лекционная, Компьютерная...)
     types = db_session.query(ClassroomType).all()
     form.class_type_id.choices = [(t.classroom_id, t.classroom_name) for t in types]
 
@@ -378,3 +381,142 @@ def classroom_delete(cls_id):
             flash('Нельзя удалить аудиторию, если в ней уже стоят занятия в расписании!', 'danger')
 
     return redirect(url_for('main.classrooms_list'))
+
+
+@bp.route('/materials')
+@login_required
+def materials_list():
+    if current_user.user_type_ref.type_name == 'teacher':
+        materials = db_session.query(EducationMaterial).filter_by(teacher_id=current_user.teacher.teacher_id).all()
+    else:
+        materials = db_session.query(EducationMaterial).all()
+
+    return render_template('materials_list.html', materials=materials)
+
+
+@bp.route('/materials/upload', methods=['GET', 'POST'])
+@login_required
+def material_upload():
+    if current_user.user_type_ref.type_name != 'teacher':
+        abort(403)
+
+    form = MaterialUploadForm()
+    form.subject_id.choices = [(s.subject_id, s.subject_name) for s in db_session.query(Subject).all()]
+    form.type_id.choices = [(t.education_material_type_id, t.education_material_type_name) for t in
+                            db_session.query(EducationMaterialType).all()]
+
+    if form.validate_on_submit():
+        final_link = None
+
+        if form.file.data:
+            file = form.file.data
+            filename = secure_filename(file.filename)
+            teacher_id = current_user.teacher.teacher_id
+            object_name = f"teacher_{teacher_id}/{filename}"
+            upload_file_to_minio(file.stream, object_name, file.content_type)
+            final_link = object_name
+
+        elif form.link_url.data:
+            final_link = form.link_url.data
+
+        else:
+            flash('Необходимо либо загрузить файл, либо указать ссылку!', 'warning')
+            return render_template('material_upload.html', form=form)
+
+        try:
+            new_material = EducationMaterial(
+                education_material_type_id=form.type_id.data,
+                subject_id=form.subject_id.data,
+                teacher_id=current_user.teacher.teacher_id,
+                education_material_name=form.material_name.data,
+                education_material_link=final_link
+            )
+            db_session.add(new_material)
+            db_session.commit()
+            flash('Материал сохранен!', 'success')
+            return redirect(url_for('main.materials_list'))
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Ошибка: {e}', 'danger')
+
+    return render_template('material_upload.html', form=form)
+
+
+@bp.route('/materials/download/<int:material_id>')
+@login_required
+def material_download(material_id):
+    material = db_session.query(EducationMaterial).get(material_id)
+    if not material:
+        abort(404)
+
+    link = material.education_material_link
+
+    if link.startswith('http://') or link.startswith('https://'):
+        return redirect(link)
+
+    file_stream = get_file_content(link)
+
+    if file_stream is None:
+        flash('Ошибка: Файл не найден в хранилище', 'danger')
+        return redirect(url_for('main.materials_list'))
+
+    original_filename = link.split('/')[-1]
+
+    return send_file(
+        file_stream,
+        as_attachment=True,
+        download_name=original_filename,
+        mimetype=file_stream.headers.get('content-type')
+    )
+
+@bp.route('/subjects')
+@login_required
+def subjects_list():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    subjects = db_session.query(Subject).order_by(Subject.subject_name).all()
+    return render_template('subjects_list.html', subjects=subjects)
+
+
+@bp.route('/subjects/new', methods=['GET', 'POST'])
+@login_required
+def subject_create():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    form = SubjectForm()
+
+    if form.validate_on_submit():
+        try:
+            new_subject = Subject(
+                subject_name=form.subject_name.data
+            )
+            db_session.add(new_subject)
+            db_session.commit()
+            flash(f'Предмет "{new_subject.subject_name}" создан!', 'success')
+            return redirect(url_for('main.subjects_list'))
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Ошибка: {e}', 'danger')
+
+    return render_template('subject_form.html', form=form, title="Новый предмет")
+
+
+@bp.route('/subjects/<int:sub_id>/delete', methods=['POST'])
+@login_required
+def subject_delete(sub_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    subject = db_session.query(Subject).get(sub_id)
+    if subject:
+        try:
+            db_session.delete(subject)
+            db_session.commit()
+            flash('Предмет удален.', 'success')
+        except Exception:
+            db_session.rollback()
+            flash('Нельзя удалить предмет, который уже используется в расписании или материалах!', 'danger')
+
+    return redirect(url_for('main.subjects_list'))

@@ -38,6 +38,10 @@
                     <a class="nav-link" href="/schedule">Расписание</a>
                 </li>
 
+                <li class="nav-item">
+                    <a class="nav-link" href="/materials">Учебные материалы</a>
+                </li>
+
                 {% if current_user.user_type_ref.type_name == 'admin' %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" role="button"
@@ -52,6 +56,7 @@
                         <li><a class="dropdown-item" href="/departments">Кафедры</a></li>
                         <li><a class="dropdown-item" href="/groups">Группы</a></li>
                         <li><a class="dropdown-item" href="/classrooms">Аудитории</a></li>
+                        <li><a class="dropdown-item" href="/subjects">Предметы</a></li>
                     </ul>
                 </li>
                 {% endif %}

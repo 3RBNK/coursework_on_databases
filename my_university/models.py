@@ -76,6 +76,7 @@ class Teacher(Base):
     subjects = relationship("Subject", secondary=teacher_subject_association, back_populates="teachers")
     schedule = relationship("Schedule", back_populates="teacher")
     department = relationship("Department", back_populates="teachers")
+    education_materials = relationship("EducationMaterial", back_populates="teacher")
 
 
 class StudyGroup(Base):
@@ -170,27 +171,16 @@ class CurriculumDetail(Base):
     assessment_type = relationship("AssessmentType", back_populates="curriculum_detail")
 
 
-class SubjectType(Base):
-    __tablename__ = "subject_type"
-
-    subject_type_id = Column(INTEGER, primary_key=True)
-    subject_type_name = Column(String(255), nullable=False, unique=True)
-
-    subject = relationship("Subject", back_populates="subject_type")
-
-
 class Subject(Base):
     __tablename__ = "subject"
 
     subject_id = Column(INTEGER, primary_key=True)
-    subject_type_id = Column(INTEGER, ForeignKey("subject_type.subject_type_id"), nullable=False)
     subject_name = Column(String(255), nullable=False, unique=True)
 
     curriculum_detail = relationship("CurriculumDetail", back_populates="subject")
     teachers = relationship("Teacher", secondary=teacher_subject_association, back_populates="subjects")
     education_materials = relationship("EducationMaterial", back_populates="subject")
     schedule = relationship("Schedule", back_populates="subject")
-    subject_type = relationship("SubjectType", back_populates="subject")
 
 
 class EducationMaterialType(Base):
@@ -206,15 +196,15 @@ class EducationMaterial(Base):
     __tablename__ = "education_material"
 
     education_material_id = Column(INTEGER, primary_key=True)
-    education_material_type_id = Column(INTEGER,
-                                        ForeignKey("education_material_type.education_material_type_id"),
-                                        nullable=False)
+    education_material_type_id = Column(INTEGER, ForeignKey("education_material_type.education_material_type_id"), nullable=False)
     subject_id = Column(INTEGER, ForeignKey("subject.subject_id"), nullable=False)
+    teacher_id = Column(INTEGER, ForeignKey("teacher.teacher_id"), nullable=False)
     education_material_name = Column(String(255), nullable=False)
-    education_material_link = Column(String(255), nullable=False, unique=True)
+    education_material_link = Column(String(255), nullable=False)
 
     education_material_type = relationship("EducationMaterialType", back_populates="education_material")
     subject = relationship("Subject", back_populates="education_materials")
+    teacher = relationship("Teacher", back_populates="education_materials")
 
 
 class TimeSlot(Base):

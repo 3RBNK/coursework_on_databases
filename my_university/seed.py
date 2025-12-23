@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from werkzeug.security import generate_password_hash
+
 from my_university.config import get_db_url
 from my_university.models import (
     Base,
