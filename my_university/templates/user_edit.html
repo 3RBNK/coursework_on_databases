@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">Редактирование пользователя</div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        <label class="form-label">Логин (не меняется)</label>
+                        <input type="text" class="form-control" value="{{ user.hash_login }}" disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.full_name.label(class="form-label") }}
+                        {{ form.full_name(class="form-control") }}
+                    </div>
+
+                    {% if role == 'student' %}
+                        <div class="mb-3 p-3 bg-light rounded">
+                            {{ form.group_id.label(class="form-label fw-bold") }}
+                            {{ form.group_id(class="form-select") }}
+                        </div>
+                    {% endif %}
+
+                    {% if role == 'teacher' %}
+                        <div class="mb-3 p-3 bg-light rounded">
+                            <div class="mb-3">
+                                {{ form.department_id.label(class="form-label fw-bold") }}
+                                {{ form.department_id(class="form-select") }}
+                            </div>
+
+                            <hr>
+
+                            <label class="form-label fw-bold">Закрепленные дисциплины:</label>
+                            <div class="border p-2 bg-white" style="max-height: 200px; overflow-y: auto;">
+                                {% for subfield in form.subject_ids %}
+                                    <div class="form-check">
+                                        {{ subfield(class="form-check-input") }}
+                                        {{ subfield.label(class="form-check-label") }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Отметьте предметы, которые может вести этот преподаватель.</div>
+                        </div>
+                    {% endif %}
+
+                    <div class="d-grid mt-4">
+                        {{ form.submit(class="btn btn-warning") }}
+                        <a href="/users" class="btn btn-link mt-2">Отмена</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

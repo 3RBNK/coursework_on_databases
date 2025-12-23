@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Пользователи системы</h2>
+
+<div class="card mb-4 bg-light shadow-sm border-0">
+    <div class="card-body">
+        <form action="/users" method="GET" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="Поиск по имени..." value="{{ sel_search }}">
+            </div>
+            <div class="col-md-2">
+                <select name="role" class="form-select">
+                    <option value="">- Все роли -</option>
+                    <option value="student" {% if sel_role=='student' %}selected{% endif %}>Студенты</option>
+                    <option value="teacher" {% if sel_role=='teacher' %}selected{% endif %}>Преподаватели</option>
+                    <option value="admin" {% if sel_role=='admin' %}selected{% endif %}>Админы</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="group_id" class="form-select">
+                    <option value="">- Все группы -</option>
+                    {% for g in all_groups %}
+                        <option value="{{ g.group_id }}" {% if sel_group==g.group_id %}selected{% endif %}>{{ g.group_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="department_id" class="form-select">
+                    <option value="">- Все кафедры -</option>
+                    {% for d in all_depts %}
+                        <option value="{{ d.department_id }}" {% if sel_dept==d.department_id %}selected{% endif %}>{{ d.department_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Найти</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Роль</th>
+                <th>ФИО</th>
+                <th>Детали (Группа / Кафедра)</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.user_id }}</td>
+                <td>
+                    {% if u.user_type_ref.type_name == 'student' %} <span class="badge bg-primary">Студент</span>
+                    {% elif u.user_type_ref.type_name == 'teacher' %} <span class="badge bg-success">Преподаватель</span>
+                    {% else %} <span class="badge bg-dark">Админ</span> {% endif %}
+                </td>
+                <td class="fw-bold">
+                    {% if u.student %}{{ u.student.full_name }}
+                    {% elif u.teacher %}{{ u.teacher.full_name }}
+                    {% elif u.admin %}{{ u.admin.full_name }}{% endif %}
+                </td>
+                <td>
+                    {% if u.student %}
+                        Группа: {{ u.student.study_group.group_name }}
+                    {% elif u.teacher %}
+                        {{ u.teacher.department.department_name }} <br>
+                        <small class="text-muted">Предметов: {{ u.teacher.subjects|length }}</small>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/users/{{ u.user_id }}/edit" class="btn btn-sm btn-outline-warning">Редактировать</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileRequired
-from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, URLField, DateField
+from flask_wtf.file import FileField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, URLField, DateField, SelectMultipleField, widgets
 from wtforms.validators import DataRequired, Length, EqualTo, Optional, URL
 
 
@@ -116,3 +116,21 @@ class CurriculumDetailForm(FlaskForm):
     hours_lecture = IntegerField('Часов нагрузки', validators=[DataRequired()])
 
     submit = SubmitField('Добавить предмет')
+
+
+class UserEditForm(FlaskForm):
+    """Форма редактирования профиля пользователя"""
+    full_name = StringField('ФИО', validators=[DataRequired()])
+
+    group_id = SelectField('Учебная группа', coerce=int, validators=[Optional()])
+    department_id = SelectField('Кафедра', coerce=int, validators=[Optional()])
+
+    subject_ids = SelectMultipleField(
+        'Закрепленные дисциплины',
+        coerce=int,
+        option_widget=widgets.CheckboxInput(),
+        widget=widgets.ListWidget(prefix_label=False),
+        validators=[Optional()]
+    )
+
+    submit = SubmitField('Сохранить изменения')

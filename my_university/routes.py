@@ -1,7 +1,7 @@
 import csv
 import json
 import io
-from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file, request, Response, make_response
+from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file, request, Response, make_response, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -20,7 +20,8 @@ from my_university.models import (
     EducationForm,
 )
 from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm,
-                                 ClassroomForm, MaterialUploadForm, SubjectForm, CurriculumDetailForm, CurriculumForm)
+                                 ClassroomForm, MaterialUploadForm, SubjectForm, CurriculumDetailForm, CurriculumForm,
+                                 UserEditForm)
 from my_university.main import db_session
 from my_university.s3_client import upload_file_to_minio, get_file_content, delete_file_from_minio
 
@@ -1004,3 +1005,114 @@ def curriculum_export_csv(curr_id):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment;filename={filename}.csv"}
     )
+
+
+@bp.route('/users')
+@login_required
+def users_list():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    search = request.args.get('search', '').strip()
+    role = request.args.get('role', '')
+    group_id = request.args.get('group_id', type=int)
+    dept_id = request.args.get('department_id', type=int)
+
+    query = db_session.query(User).outerjoin(Student).outerjoin(Teacher).outerjoin(StudyGroup).outerjoin(Department)
+
+    if search:
+        query = query.filter(
+            (Student.full_name.ilike(f'%{search}%')) |
+            (Teacher.full_name.ilike(f'%{search}%')) |
+            (Admin.full_name.ilike(f'%{search}%'))
+        )
+
+    if role:
+        query = query.join(UserType).filter(UserType.type_name == role)
+
+    if group_id:
+        query = query.filter(Student.group_id == group_id)
+
+    if dept_id:
+        query = query.filter(Teacher.department_id == dept_id)
+
+    users = query.all()
+
+    all_groups = db_session.query(StudyGroup).order_by(StudyGroup.group_name).all()
+    all_depts = db_session.query(Department).order_by(Department.department_name).all()
+
+    return render_template(
+        'users_list.html',
+        users=users,
+        all_groups=all_groups,
+        all_depts=all_depts,
+        sel_search=search, sel_role=role, sel_group=group_id, sel_dept=dept_id
+    )
+
+
+@bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def user_edit(user_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    user = db_session.query(User).get(user_id)
+    if not user:
+        abort(404)
+    role = user.user_type_ref.type_name
+
+    form = UserEditForm()
+
+    form.group_id.choices = [(0, '-- Без группы --')] + [(g.group_id, g.group_name) for g in
+                                                         db_session.query(StudyGroup).all()]
+    form.department_id.choices = [(0, '-- Без кафедры --')] + [(d.department_id, d.department_name) for d in
+                                                               db_session.query(Department).all()]
+    form.subject_ids.choices = [(s.subject_id, s.subject_name) for s in db_session.query(Subject).all()]
+
+    if request.method == 'GET':
+        if role == 'student':
+            form.full_name.data = user.student.full_name
+            form.group_id.data = user.student.group_id
+        elif role == 'teacher':
+            form.full_name.data = user.teacher.full_name
+            form.department_id.data = user.teacher.department_id
+            form.subject_ids.data = [s.subject_id for s in user.teacher.subjects]
+        elif role == 'admin':
+            form.full_name.data = user.admin.full_name
+
+    if form.validate_on_submit():
+        try:
+            if role == 'student':
+                user.student.full_name = form.full_name.data
+                user.student.group_id = form.group_id.data
+
+            elif role == 'teacher':
+                user.teacher.full_name = form.full_name.data
+                user.teacher.department_id = form.department_id.data
+
+                selected_ids = form.subject_ids.data
+                selected_subjects = db_session.query(Subject).filter(Subject.subject_id.in_(selected_ids)).all()
+                user.teacher.subjects = selected_subjects
+
+            elif role == 'admin':
+                user.admin.full_name = form.full_name.data
+
+            db_session.commit()
+            flash('Пользователь обновлен.', 'success')
+            return redirect(url_for('main.users_list'))
+
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Ошибка обновления: {e}', 'danger')
+
+    return render_template('user_edit.html', form=form, user=user, role=role)
+
+
+@bp.route('/api/teacher/<int:teacher_id>/subjects')
+def get_teacher_subjects(teacher_id):
+    teacher = db_session.query(Teacher).get(teacher_id)
+    if not teacher:
+        return jsonify([])
+
+    subjects = [{'id': s.subject_id, 'name': s.subject_name} for s in teacher.subjects]
+    return jsonify(subjects)

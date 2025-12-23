@@ -83,4 +83,47 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const teacherSelect = document.getElementById('teacher_id');
+    const subjectSelect = document.getElementById('subject_id');
+
+    const allSubjects = Array.from(subjectSelect.options);
+
+    teacherSelect.addEventListener('change', function() {
+        const teacherId = this.value;
+        if (!teacherId) return;
+
+        fetch(`/api/teacher/${teacherId}/subjects`)
+            .then(response => response.json())
+            .then(subjects => {
+                if (subjects.length === 0) {
+                    restoreAllSubjects();
+                    return;
+                }
+
+                subjectSelect.innerHTML = '';
+
+                const allowedIds = subjects.map(s => s.id);
+
+                allSubjects.forEach(option => {
+                    if (allowedIds.includes(parseInt(option.value))) {
+                        subjectSelect.appendChild(option.cloneNode(true));
+                    }
+                });
+
+                if (subjectSelect.options.length === 0) {
+                    restoreAllSubjects();
+                }
+            })
+            .catch(err => console.error('Ошибка загрузки предметов:', err));
+    });
+
+    function restoreAllSubjects() {
+        subjectSelect.innerHTML = '';
+        allSubjects.forEach(opt => subjectSelect.appendChild(opt.cloneNode(true)));
+    }
+});
+</script>
 {% endblock %}
