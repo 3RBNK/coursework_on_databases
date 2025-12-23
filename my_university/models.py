@@ -240,7 +240,6 @@ class Schedule(Base):
 
     __table_args__ = (
         UniqueConstraint('study_group_id', 'day_of_week', 'time_slot_id', name='_group_time_uc'),
-        UniqueConstraint('teacher_id', 'day_of_week', 'time_slot_id', name='_teacher_time_uc'),
     )
 
     study_group = relationship("StudyGroup", back_populates="schedule")

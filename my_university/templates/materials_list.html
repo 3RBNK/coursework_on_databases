@@ -4,9 +4,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="text-primary">Учебные материалы</h2>
     {% if current_user.user_type_ref.type_name == 'teacher' %}
-        <a href="/materials/upload" class="btn btn-success">
-            <i class="bi bi-upload"></i> Загрузить материал
-        </a>
+    <a href="/materials/upload" class="btn btn-success">
+        <i class="bi bi-upload"></i> Загрузить материал
+    </a>
     {% endif %}
 </div>
 
@@ -15,16 +15,18 @@
         <form action="/materials" method="GET" class="row g-3">
 
             <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="Название материала..." value="{{ selected_search }}">
+                <input type="text" name="search" class="form-control" placeholder="Название материала..."
+                       value="{{ selected_search }}">
             </div>
 
             <div class="col-md-3">
                 <select name="department_id" class="form-select">
-                    <option value="">Все кафедры </option>
+                    <option value="">Все кафедры</option>
                     {% for dep in all_departments %}
-                        <option value="{{ dep.department_id }}" {% if selected_dept == dep.department_id %}selected{% endif %}>
-                            {{ dep.department_name }}
-                        </option>
+                    <option value="{{ dep.department_id }}" {% if selected_dept== dep.department_id %}selected{% endif
+                            %}>
+                        {{ dep.department_name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -33,9 +35,9 @@
                 <select name="teacher_id" class="form-select">
                     <option value="">Все преподаватели</option>
                     {% for t in all_teachers %}
-                        <option value="{{ t.teacher_id }}" {% if selected_teacher == t.teacher_id %}selected{% endif %}>
-                            {{ t.full_name }}
-                        </option>
+                    <option value="{{ t.teacher_id }}" {% if selected_teacher== t.teacher_id %}selected{% endif %}>
+                        {{ t.full_name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -47,14 +49,15 @@
         </form>
 
         {% if current_user.user_type_ref.type_name == 'teacher' %}
-            <div class="mt-2">
-                {% if is_showing_mine %}
-                    <a href="/materials" class="badge bg-secondary text-decoration-none">Показать все</a>
-                    <span class="badge bg-primary">Только мои</span>
-                {% else %}
-                    <a href="/materials?mine=1" class="badge bg-outline-primary text-primary border text-decoration-none">Показать только мои</a>
-                {% endif %}
-            </div>
+        <div class="mt-2">
+            {% if is_showing_mine %}
+            <a href="/materials" class="badge bg-secondary text-decoration-none">Показать все</a>
+            <span class="badge bg-primary">Только мои</span>
+            {% else %}
+            <a href="/materials?mine=1" class="badge bg-outline-primary text-primary border text-decoration-none">Показать
+                только мои</a>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 </div>
@@ -82,9 +85,31 @@
                     </div>
                 </div>
 
-                <a href="/materials/download/{{ mat.education_material_id }}" class="btn btn-outline-primary w-100" target="_blank">
-                    Скачать / Открыть
-                </a>
+                <div class="mt-auto">
+                    <a href="/materials/download/{{ mat.education_material_id }}"
+                       class="btn btn-outline-primary w-100 mb-2" target="_blank">
+                        Скачать / Открыть
+                    </a>
+
+                    {% set show_delete = False %}
+
+                    {% if current_user.user_type_ref.type_name == 'admin' %}
+                    {% set show_delete = True %}
+
+                    {% elif current_user.user_type_ref.type_name == 'teacher' and current_user.teacher.teacher_id ==
+                    mat.teacher_id %}
+                    {% set show_delete = True %}
+                    {% endif %}
+
+                    {% if show_delete %}
+                    <form action="/materials/{{ mat.education_material_id }}/delete" method="POST"
+                          onsubmit="return confirm('Вы уверены, что хотите удалить этот материал? Восстановить его будет невозможно.');">
+                        <button type="submit" class="btn btn-danger w-100 btn-sm">
+                            Удалить
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

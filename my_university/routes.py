@@ -12,12 +12,14 @@ from my_university.models import (
     Schedule, Classroom,
     LessonType, Subject,
     Curriculum, ClassroomType,
-    EducationMaterial, EducationMaterialType, CurriculumDetail, AssessmentType, EducationForm,
+    EducationMaterial, EducationMaterialType,
+    CurriculumDetail, AssessmentType,
+    EducationForm,
 )
 from my_university.forms import (LoginForm, RegistrationForm, ScheduleForm, DepartmentForm, StudyGroupForm,
                                  ClassroomForm, MaterialUploadForm, SubjectForm, CurriculumDetailForm, CurriculumForm)
 from my_university.main import db_session
-from my_university.s3_client import upload_file_to_minio, get_file_content
+from my_university.s3_client import upload_file_to_minio, get_file_content, delete_file_from_minio
 
 bp = Blueprint('main', __name__)
 
@@ -25,6 +27,9 @@ bp = Blueprint('main', __name__)
 @bp.route('/')
 def index():
     if current_user.is_authenticated:
+        if current_user.user_type_ref.type_name in ['student', 'teacher']:
+            return redirect(url_for('main.schedule_view'))
+
         return render_template('index.html')
     else:
         return redirect(url_for('main.login'))
@@ -33,6 +38,8 @@ def index():
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
+        if current_user.user_type_ref.type_name in ['student', 'teacher']:
+            return redirect(url_for('main.schedule_view'))
         return redirect(url_for('main.index'))
 
     form = LoginForm()
@@ -43,7 +50,17 @@ def login():
             login_user(user)
             flash('Вы успешно вошли в систему!', 'success')
 
-            return redirect(url_for('main.index'))
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+
+            role = user.user_type_ref.type_name
+
+            if role == 'student' or role == 'teacher':
+                return redirect(url_for('main.schedule_view'))
+            else:
+                return redirect(url_for('main.index'))
+
         else:
             flash('Неверный логин или пароль', 'danger')
 
@@ -364,8 +381,6 @@ def material_upload():
                             db_session.query(EducationMaterialType).all()]
 
     if form.validate_on_submit():
-        final_link = None
-
         if form.file.data:
             file = form.file.data
             filename = secure_filename(file.filename)
@@ -426,6 +441,41 @@ def material_download(material_id):
         download_name=original_filename,
         mimetype=file_stream.headers.get('content-type')
     )
+
+
+@bp.route('/materials/<int:material_id>/delete', methods=['POST'])
+@login_required
+def material_delete(material_id):
+    material = db_session.query(EducationMaterial).get(material_id)
+    if not material:
+        abort(404)
+
+    is_admin = current_user.user_type_ref.type_name == 'admin'
+    is_owner = False
+
+    if current_user.user_type_ref.type_name == 'teacher':
+        if material.teacher_id == current_user.teacher.teacher_id:
+            is_owner = True
+
+    if not is_admin and not is_owner:
+        abort(403)
+
+    try:
+        link = material.education_material_link
+        if not (link.startswith('http://') or link.startswith('https://')):
+            delete_file_from_minio(link)
+
+        db_session.delete(material)
+        db_session.commit()
+
+        flash('Учебный материал удален.', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Ошибка при удалении: {e}', 'danger')
+
+    return redirect(url_for('main.materials_list'))
+
 
 @bp.route('/subjects')
 @login_required
@@ -688,6 +738,30 @@ def schedule_edit(sched_id):
 
     if form.validate_on_submit():
         try:
+            teacher_conflict = db_session.query(Schedule).filter(
+                Schedule.teacher_id == form.teacher_id.data,
+                Schedule.day_of_week == form.day_of_week.data,
+                Schedule.time_slot_id == form.time_slot_id.data,
+                Schedule.classroom_id != form.classroom_id.data,
+                Schedule.schedule_id != sched_id
+            ).first()
+
+            if teacher_conflict:
+                flash(f'Преподаватель занят в ауд. {teacher_conflict.classroom.class_name}', 'danger')
+                return render_template('schedule_form.html', form=form, title="Редактирование")
+
+            room_conflict = db_session.query(Schedule).filter(
+                Schedule.classroom_id == form.classroom_id.data,
+                Schedule.day_of_week == form.day_of_week.data,
+                Schedule.time_slot_id == form.time_slot_id.data,
+                Schedule.teacher_id != form.teacher_id.data,
+                Schedule.schedule_id != sched_id  # <--- ВАЖНО
+            ).first()
+
+            if room_conflict:
+                flash(f'Аудитория занята преподавателем {room_conflict.teacher.full_name}', 'danger')
+                return render_template('schedule_form.html', form=form, title="Редактирование")
+
             form.populate_obj(schedule_item)
 
             db_session.commit()
@@ -699,12 +773,8 @@ def schedule_edit(sched_id):
         except IntegrityError as e:
             db_session.rollback()
             error_text = str(e.orig)
-            if '_teacher_time_uc' in error_text:
-                flash('Ошибка: Этот ПРЕПОДАВАТЕЛЬ уже занят в это время!', 'danger')
-            elif '_group_time_uc' in error_text:
+            if '_group_time_uc' in error_text:
                 flash('Ошибка: У этой ГРУППЫ уже стоит занятие в это время!', 'danger')
-            elif '_classroom_time_uc' in error_text:
-                flash('Ошибка: Эта АУДИТОРИЯ уже занята в это время!', 'danger')
             else:
                 flash('Ошибка: Такое занятие уже существует или нарушает правила уникальности.', 'danger')
 
@@ -749,6 +819,30 @@ def schedule_create():
 
     if form.validate_on_submit():
         try:
+            teacher_conflict = db_session.query(Schedule).filter(
+                Schedule.teacher_id == form.teacher_id.data,
+                Schedule.day_of_week == form.day_of_week.data,
+                Schedule.time_slot_id == form.time_slot_id.data,
+                Schedule.classroom_id != form.classroom_id.data,
+            ).first()
+
+            if teacher_conflict:
+                flash(
+                    f'Ошибка: Преподаватель уже ведет пару в это время в другой аудитории ({teacher_conflict.classroom.class_name})!',
+                    'danger')
+                return render_template('schedule_form.html', form=form, title="Добавить занятие")
+
+            room_conflict = db_session.query(Schedule).filter(
+                Schedule.classroom_id == form.classroom_id.data,
+                Schedule.day_of_week == form.day_of_week.data,
+                Schedule.time_slot_id == form.time_slot_id.data,
+                Schedule.teacher_id != form.teacher_id.data
+            ).first()
+
+            if room_conflict:
+                flash(f'Ошибка: Аудитория занята другим преподавателем ({room_conflict.teacher.full_name})!', 'danger')
+                return render_template('schedule_form.html', form=form, title="Добавить занятие")
+
             new_schedule = Schedule(
                 study_group_id=form.study_group_id.data,
                 teacher_id=form.teacher_id.data,
@@ -768,12 +862,8 @@ def schedule_create():
         except IntegrityError as e:
             db_session.rollback()
             error_text = str(e.orig)
-            if '_teacher_time_uc' in error_text:
-                flash('Ошибка: Этот ПРЕПОДАВАТЕЛЬ уже занят в это время!', 'danger')
-            elif '_group_time_uc' in error_text:
+            if '_group_time_uc' in error_text:
                 flash('Ошибка: У этой ГРУППЫ уже стоит занятие в это время!', 'danger')
-            elif '_classroom_time_uc' in error_text:
-                flash('Ошибка: Эта АУДИТОРИЯ уже занята в это время!', 'danger')
             else:
                 flash('Ошибка: Такое занятие уже существует или нарушает правила уникальности.', 'danger')
 

@@ -67,3 +67,14 @@ def get_file_content(object_name):
     except Exception as e:
         print(f"Ошибка при получении файла из MinIO: {e}")
         return None
+
+
+def delete_file_from_minio(object_name):
+    """
+    Удаляет объект из хранилища MinIO.
+    """
+    try:
+        client.remove_object(BUCKET_NAME, object_name)
+        print(f"Файл {object_name} успешно удален из MinIO.")
+    except Exception as e:
+        print(f"Ошибка при удалении файла из MinIO: {e}")
