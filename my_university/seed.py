@@ -92,23 +92,14 @@ def seed_database():
                 session.add(atype)
                 print(f"  - Добавлен тип аттестации: {atype.assessment_type_name}")
 
-
         time_slots_to_add = [
-            TimeSlot(time_slot_name='1 пара, 1 часть', time_start='08:15', time_end='09:00'),
-            TimeSlot(time_slot_name='1 пара, 2 часть', time_start='09:05', time_end='09:50'),
-            TimeSlot(time_slot_name='2 пара, 1 часть', time_start='10:00', time_end='10:45'),
-            TimeSlot(time_slot_name='2 пара, 2 часть', time_start='10:50', time_end='11:35'),
-            TimeSlot(time_slot_name='3 пара, 1 часть', time_start='11:45', time_end='12:30'),
-            TimeSlot(time_slot_name='3 пара, 2 часть', time_start='12:35', time_end='13:20'),
-            TimeSlot(time_slot_name='3 пара, 3 часть', time_start='13:25', time_end='14:10'),
-            TimeSlot(time_slot_name='4 пара, 1 часть', time_start='14:20', time_end='15:05'),
-            TimeSlot(time_slot_name='4 пара, 2 часть', time_start='15:10', time_end='15:55'),
-            TimeSlot(time_slot_name='5 пара, 1 часть', time_start='16:05', time_end='16:50'),
-            TimeSlot(time_slot_name='5 пара, 2 часть', time_start='16:55', time_end='17:40'),
-            TimeSlot(time_slot_name='6 пара, 1 часть', time_start='17:50', time_end='18:35'),
-            TimeSlot(time_slot_name='6 пара, 2 часть', time_start='18:40', time_end='19:25'),
-            TimeSlot(time_slot_name='7 пара, 1 часть', time_start='19:35', time_end='20:20'),
-            TimeSlot(time_slot_name='7 пара, 2 часть', time_start='20:25', time_end='21:10')
+            TimeSlot(time_slot_name='1 пара', time_start='08:15', time_end='09:50'),
+            TimeSlot(time_slot_name='2 пара', time_start='10:00', time_end='11:35'),
+            TimeSlot(time_slot_name='3 пара', time_start='11:45', time_end='13:20'),
+            TimeSlot(time_slot_name='4 пара', time_start='14:00', time_end='15:35'),
+            TimeSlot(time_slot_name='5 пара', time_start='15:45', time_end='17:20'),
+            TimeSlot(time_slot_name='6 пара', time_start='17:30', time_end='19:05'),
+            TimeSlot(time_slot_name='7 пара', time_start='19:15', time_end='20:50')
         ]
         for slot in time_slots_to_add:
             if not session.query(TimeSlot).filter_by(time_slot_name=slot.time_slot_name).first():

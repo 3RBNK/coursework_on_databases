@@ -13,7 +13,7 @@
 
                     <div class="mb-3">
                         {{ form.subject_name.label(class="form-label") }}
-                        {{ form.subject_name(class="form-control", placeholder="Например: Математический анализ") }}
+                        {{ form.subject_name(class="form-control", placeholder="Например: Высшая математика") }}
                         {% for error in form.subject_name.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}

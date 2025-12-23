@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">{{ title }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.study_group_id.label(class="form-label") }}
+                            {{ form.study_group_id(class="form-select") }}
+                            {% for error in form.study_group_id.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.day_of_week.label(class="form-label") }}
+                            {{ form.day_of_week(class="form-select") }}
+                            {% for error in form.day_of_week.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.time_slot_id.label(class="form-label") }}
+                        {{ form.time_slot_id(class="form-select") }}
+                        {% for error in form.time_slot_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="mb-3">
+                        {{ form.subject_id.label(class="form-label") }}
+                        {{ form.subject_id(class="form-select") }}
+                        {% for error in form.subject_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.teacher_id.label(class="form-label") }}
+                        {{ form.teacher_id(class="form-select") }}
+                        {% for error in form.teacher_id.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.lesson_type_id.label(class="form-label") }}
+                            {{ form.lesson_type_id(class="form-select") }}
+                            {% for error in form.lesson_type_id.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.classroom_id.label(class="form-label") }}
+                            {{ form.classroom_id(class="form-select") }}
+                            {% for error in form.classroom_id.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        {{ form.submit(class="btn btn-success btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-3 text-center">
+            <a href="javascript:history.back()" class="text-decoration-none">← Отмена</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

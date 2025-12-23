@@ -1,34 +1,97 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Учебные материалы</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-primary">Учебные материалы</h2>
     {% if current_user.user_type_ref.type_name == 'teacher' %}
-        <a href="/materials/upload" class="btn btn-success">Загрузить файл</a>
+        <a href="/materials/upload" class="btn btn-success">
+            <i class="bi bi-upload"></i> Загрузить материал
+        </a>
     {% endif %}
+</div>
+
+<div class="card mb-4 bg-light border-0 shadow-sm">
+    <div class="card-body">
+        <form action="/materials" method="GET" class="row g-3">
+
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="Название материала..." value="{{ selected_search }}">
+            </div>
+
+            <div class="col-md-3">
+                <select name="department_id" class="form-select">
+                    <option value="">Все кафедры </option>
+                    {% for dep in all_departments %}
+                        <option value="{{ dep.department_id }}" {% if selected_dept == dep.department_id %}selected{% endif %}>
+                            {{ dep.department_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <select name="teacher_id" class="form-select">
+                    <option value="">Все преподаватели</option>
+                    {% for t in all_teachers %}
+                        <option value="{{ t.teacher_id }}" {% if selected_teacher == t.teacher_id %}selected{% endif %}>
+                            {{ t.full_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2 d-grid gap-2">
+                <button type="submit" class="btn btn-primary">Найти</button>
+                <a href="/materials" class="btn btn-outline-secondary">Сброс</a>
+            </div>
+        </form>
+
+        {% if current_user.user_type_ref.type_name == 'teacher' %}
+            <div class="mt-2">
+                {% if is_showing_mine %}
+                    <a href="/materials" class="badge bg-secondary text-decoration-none">Показать все</a>
+                    <span class="badge bg-primary">Только мои</span>
+                {% else %}
+                    <a href="/materials?mine=1" class="badge bg-outline-primary text-primary border text-decoration-none">Показать только мои</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
 </div>
 
 <div class="row">
     {% for mat in materials %}
     <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-0">
             <div class="card-body">
-                <h5 class="card-title">{{ mat.education_material_name }}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">{{ mat.subject.subject_name }}</h6>
-                <p class="card-text">
-                    <span class="badge bg-secondary">{{ mat.education_material_type.education_material_type_name }}</span>
-                    <br>
-                    <small>Преподаватель: {{ mat.teacher.full_name }}</small>
-                </p>
-                <a href="/materials/download/{{ mat.education_material_id }}" class="btn btn-primary w-100" target="_blank">
-                    Скачать
+                <div class="mb-2">
+                    <span class="badge bg-info text-dark">{{ mat.education_material_type.education_material_type_name }}</span>
+                </div>
+
+                <h5 class="card-title text-dark">{{ mat.education_material_name }}</h5>
+
+                <div class="text-muted small mb-3">
+                    <div class="mb-1">
+                        <strong>Предмет:</strong> {{ mat.subject.subject_name }}
+                    </div>
+                    <div class="mb-1">
+                        <strong>Автор:</strong> {{ mat.teacher.full_name }}
+                    </div>
+                    <div>
+                        <i class="text-secondary">{{ mat.teacher.department.department_name }}</i>
+                    </div>
+                </div>
+
+                <a href="/materials/download/{{ mat.education_material_id }}" class="btn btn-outline-primary w-100" target="_blank">
+                    Скачать / Открыть
                 </a>
             </div>
         </div>
     </div>
     {% else %}
-    <div class="col-12">
-        <p class="text-center text-muted">Файлов нет.</p>
+    <div class="col-12 text-center py-5">
+        <h4 class="text-muted">Ничего не найдено</h4>
+        <p>Попробуйте изменить параметры поиска.</p>
     </div>
     {% endfor %}
 </div>

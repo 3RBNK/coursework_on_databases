@@ -1,9 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file, request
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from sqlalchemy import exc
-import mimetypes
+from sqlalchemy.exc import IntegrityError
 
 from my_university.models import (
     User, Student,
@@ -122,77 +121,6 @@ def create_user():
             flash(f'Ошибка создания: {e}', 'danger')
 
     return render_template('create_user.html', form=form)
-
-
-@bp.route('/schedule')
-@login_required
-def view_schedule():
-    user = current_user
-    query = db_session.query(Schedule)
-
-    title = "Расписание занятий"
-
-    if user.user_type_ref.type_name == 'student':
-        query = query.filter_by(study_group_id=user.student.group_id)
-        title = f"Расписание группы {user.student.study_group.group_name}"
-
-    elif user.user_type_ref.type_name == 'teacher':
-        query = query.filter_by(teacher_id=user.teacher.teacher_id)
-        title = f"Расписание преподавателя {user.teacher.full_name}"
-
-    schedules = query.order_by(Schedule.day_of_week, Schedule.time_slot_id).all()
-
-    days = {1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота', 7: 'Воскресенье'}
-
-    return render_template('schedule_view.html', schedules=schedules, days=days, title=title)
-
-
-@bp.route('/schedule/manage', methods=['GET', 'POST'])
-@login_required
-def manage_schedule():
-    if current_user.user_type_ref.type_name != 'admin':
-        flash('Доступ запрещен', 'danger')
-        return redirect(url_for('main.view_schedule'))
-
-    form = ScheduleForm()
-
-    form.study_group_id.choices = [(g.group_id, g.group_name) for g in db_session.query(StudyGroup).all()]
-    form.teacher_id.choices = [(t.teacher_id, t.full_name) for t in db_session.query(Teacher).all()]
-    form.subject_id.choices = [(s.subject_id, s.subject_name) for s in db_session.query(Subject).all()]
-    form.lesson_type_id.choices = [(l.lesson_type_id, l.lesson_type_name) for l in db_session.query(LessonType).all()]
-    form.classroom_id.choices = [(c.class_id, c.class_name) for c in db_session.query(Classroom).all()]
-
-    form.time_slot_id.choices = [(t.time_slot_id, f"{t.time_slot_name} ({t.time_start.strftime('%H:%M')})") for t in
-                                 db_session.query(TimeSlot).all()]
-
-    if form.validate_on_submit():
-        try:
-            new_schedule = Schedule(
-                study_group_id=form.study_group_id.data,
-                teacher_id=form.teacher_id.data,
-                subject_id=form.subject_id.data,
-                lesson_type_id=form.lesson_type_id.data,
-                classroom_id=form.classroom_id.data,
-                time_slot_id=form.time_slot_id.data,
-                day_of_week=form.day_of_week.data
-            )
-            db_session.add(new_schedule)
-            db_session.commit()
-            flash('Занятие успешно добавлено!', 'success')
-            return redirect(url_for('main.manage_schedule'))
-
-        except exc.IntegrityError:
-            db_session.rollback()
-            flash('Ошибка: Конфликт в расписании! (Аудитория, группа или преподаватель уже заняты в это время)',
-                  'danger')
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Ошибка: {e}', 'danger')
-
-    all_schedules = db_session.query(Schedule).order_by(Schedule.day_of_week, Schedule.time_slot_id).all()
-    days = {1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота', 7: 'Воскресенье'}
-
-    return render_template('schedule_manage.html', form=form, schedules=all_schedules, days=days)
 
 
 @bp.route('/departments')
@@ -386,12 +314,42 @@ def classroom_delete(cls_id):
 @bp.route('/materials')
 @login_required
 def materials_list():
-    if current_user.user_type_ref.type_name == 'teacher':
-        materials = db_session.query(EducationMaterial).filter_by(teacher_id=current_user.teacher.teacher_id).all()
-    else:
-        materials = db_session.query(EducationMaterial).all()
+    query = db_session.query(EducationMaterial).join(Teacher).join(Department)
 
-    return render_template('materials_list.html', materials=materials)
+    search_text = request.args.get('search', '').strip()
+    dept_id = request.args.get('department_id', type=int)
+    teacher_id = request.args.get('teacher_id', type=int)
+
+    show_mine = request.args.get('mine')
+
+    if search_text:
+        query = query.filter(EducationMaterial.education_material_name.ilike(f'%{search_text}%'))
+
+    if dept_id:
+        query = query.filter(Teacher.department_id == dept_id)
+
+    if teacher_id:
+        query = query.filter(EducationMaterial.teacher_id == teacher_id)
+
+    if current_user.user_type_ref.type_name == 'teacher':
+        if show_mine:
+            query = query.filter(EducationMaterial.teacher_id == current_user.teacher.teacher_id)
+
+    materials = query.order_by(EducationMaterial.education_material_name).all()
+
+    all_departments = db_session.query(Department).order_by(Department.department_name).all()
+    all_teachers = db_session.query(Teacher).order_by(Teacher.full_name).all()
+
+    return render_template(
+        'materials_list.html',
+        materials=materials,
+        all_departments=all_departments,
+        all_teachers=all_teachers,
+        selected_search=search_text,
+        selected_dept=dept_id,
+        selected_teacher=teacher_id,
+        is_showing_mine=show_mine
+    )
 
 
 @bp.route('/materials/upload', methods=['GET', 'POST'])
@@ -615,3 +573,208 @@ def curriculum_detail_delete(detail_id):
         flash('Предмет удален из плана.', 'success')
         return redirect(url_for('main.curriculum_view', curr_id=curr_id))
     return redirect(url_for('main.curriculums_list'))
+
+
+def transform_schedule_to_grid(schedule_items, time_slots):
+    """
+    Превращает список записей из БД в словарь:
+    grid[день_недели][id_таймслота] = Занятие
+    """
+    grid = {day: {} for day in range(1, 7)}
+
+    for item in schedule_items:
+        grid[item.day_of_week][item.time_slot_id] = item
+
+    return grid
+
+
+@bp.route('/schedule')
+@login_required
+def schedule_view():
+    target_group_id = None
+    target_teacher_id = None
+
+    role_name = current_user.user_type_ref.type_name
+
+    all_groups = db_session.query(StudyGroup).order_by(StudyGroup.group_name).all()
+    all_teachers = db_session.query(Teacher).order_by(Teacher.full_name).all()
+
+    if role_name == 'admin':
+        if request.args.get('group_id'):
+            target_group_id = int(request.args.get('group_id'))
+        elif request.args.get('teacher_id'):
+            target_teacher_id = int(request.args.get('teacher_id'))
+
+    elif role_name == 'student':
+        if current_user.student:
+            target_group_id = current_user.student.group_id
+
+    elif role_name == 'teacher':
+        if current_user.teacher:
+            target_teacher_id = current_user.teacher.teacher_id
+
+    query = db_session.query(Schedule)
+    title = "Расписание"
+
+    if target_group_id:
+        query = query.filter_by(study_group_id=target_group_id)
+        grp = db_session.query(StudyGroup).get(target_group_id)
+        if grp: title = f"Расписание группы {grp.group_name}"
+
+    elif target_teacher_id:
+        query = query.filter_by(teacher_id=target_teacher_id)
+        tch = db_session.query(Teacher).get(target_teacher_id)
+        if tch: title = f"Расписание преподавателя {tch.full_name}"
+    else:
+        query = query.filter(False)
+
+    schedule_items = query.all()
+    time_slots = db_session.query(TimeSlot).order_by(TimeSlot.time_start).all()
+    grid = transform_schedule_to_grid(schedule_items, time_slots)
+
+    return render_template(
+        'schedule_view.html',
+        grid=grid,
+        time_slots=time_slots,
+        days={1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ', 6: 'СБ'},
+        title=title,
+        all_groups=all_groups,
+        all_teachers=all_teachers,
+        target_group_id=target_group_id,
+        target_teacher_id=target_teacher_id
+    )
+
+
+@bp.route('/schedule/<int:sched_id>/delete', methods=['POST'])
+@login_required
+def schedule_delete(sched_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    item = db_session.query(Schedule).get(sched_id)
+    if item:
+        grp_id = item.study_group_id
+        db_session.delete(item)
+        db_session.commit()
+        flash('Занятие отменено.', 'success')
+        return redirect(url_for('main.schedule_view', group_id=grp_id))
+
+    return redirect(url_for('main.schedule_view'))
+
+
+@bp.route('/schedule/<int:sched_id>/edit', methods=['GET', 'POST'])
+@login_required
+def schedule_edit(sched_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    schedule_item = db_session.query(Schedule).get(sched_id)
+    if not schedule_item:
+        abort(404)
+
+    form = ScheduleForm(obj=schedule_item)
+
+    form.study_group_id.choices = [(g.group_id, g.group_name) for g in
+                                   db_session.query(StudyGroup).order_by(StudyGroup.group_name).all()]
+    form.teacher_id.choices = [(t.teacher_id, t.full_name) for t in
+                               db_session.query(Teacher).order_by(Teacher.full_name).all()]
+    form.subject_id.choices = [(s.subject_id, s.subject_name) for s in
+                               db_session.query(Subject).order_by(Subject.subject_name).all()]
+    form.lesson_type_id.choices = [(l.lesson_type_id, l.lesson_type_name) for l in db_session.query(LessonType).all()]
+    form.classroom_id.choices = [(c.class_id, f"{c.class_name} ({c.classroom_type.classroom_name})") for c in
+                                 db_session.query(Classroom).order_by(Classroom.class_name).all()]
+    form.time_slot_id.choices = [(ts.time_slot_id, f"{ts.time_slot_name} ({ts.time_start.strftime('%H:%M')})") for ts in
+                                 db_session.query(TimeSlot).order_by(TimeSlot.time_start).all()]
+
+    if form.validate_on_submit():
+        try:
+            form.populate_obj(schedule_item)
+
+            db_session.commit()
+            flash('Занятие успешно изменено!', 'success')
+
+            return redirect(url_for('main.schedule_view', group_id=schedule_item.study_group_id))
+
+
+        except IntegrityError as e:
+            db_session.rollback()
+            error_text = str(e.orig)
+            if '_teacher_time_uc' in error_text:
+                flash('Ошибка: Этот ПРЕПОДАВАТЕЛЬ уже занят в это время!', 'danger')
+            elif '_group_time_uc' in error_text:
+                flash('Ошибка: У этой ГРУППЫ уже стоит занятие в это время!', 'danger')
+            elif '_classroom_time_uc' in error_text:
+                flash('Ошибка: Эта АУДИТОРИЯ уже занята в это время!', 'danger')
+            else:
+                flash('Ошибка: Такое занятие уже существует или нарушает правила уникальности.', 'danger')
+
+    form.submit.label.text = "Сохранить изменения"
+
+    return render_template('schedule_form.html', form=form, title="Редактирование занятия")
+
+
+@bp.route('/schedule/new', methods=['GET', 'POST'])
+@login_required
+def schedule_create():
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    form = ScheduleForm()
+
+    form.study_group_id.choices = [(g.group_id, g.group_name) for g in
+                                   db_session.query(StudyGroup).order_by(StudyGroup.group_name).all()]
+    form.teacher_id.choices = [(t.teacher_id, t.full_name) for t in
+                               db_session.query(Teacher).order_by(Teacher.full_name).all()]
+    form.subject_id.choices = [(s.subject_id, s.subject_name) for s in
+                               db_session.query(Subject).order_by(Subject.subject_name).all()]
+    form.lesson_type_id.choices = [(l.lesson_type_id, l.lesson_type_name) for l in db_session.query(LessonType).all()]
+
+    form.classroom_id.choices = [(c.class_id, f"{c.class_name} ({c.classroom_type.classroom_name})") for c in
+                                 db_session.query(Classroom).order_by(Classroom.class_name).all()]
+
+    form.time_slot_id.choices = [(ts.time_slot_id, f"{ts.time_slot_name} ({ts.time_start.strftime('%H:%M')})") for ts in
+                                 db_session.query(TimeSlot).order_by(TimeSlot.time_start).all()]
+
+    if request.method == 'GET':
+        req_group = request.args.get('group_id', type=int)
+        req_day = request.args.get('day', type=int)
+        req_slot = request.args.get('slot', type=int)
+
+        if req_group:
+            form.study_group_id.data = req_group
+        if req_day:
+            form.day_of_week.data = req_day
+        if req_slot:
+            form.time_slot_id.data = req_slot
+
+    if form.validate_on_submit():
+        try:
+            new_schedule = Schedule(
+                study_group_id=form.study_group_id.data,
+                teacher_id=form.teacher_id.data,
+                subject_id=form.subject_id.data,
+                lesson_type_id=form.lesson_type_id.data,
+                classroom_id=form.classroom_id.data,
+                day_of_week=form.day_of_week.data,
+                time_slot_id=form.time_slot_id.data
+            )
+            db_session.add(new_schedule)
+            db_session.commit()
+
+            flash('Занятие добавлено в расписание!', 'success')
+
+            return redirect(url_for('main.schedule_view', group_id=form.study_group_id.data))
+
+        except IntegrityError as e:
+            db_session.rollback()
+            error_text = str(e.orig)
+            if '_teacher_time_uc' in error_text:
+                flash('Ошибка: Этот ПРЕПОДАВАТЕЛЬ уже занят в это время!', 'danger')
+            elif '_group_time_uc' in error_text:
+                flash('Ошибка: У этой ГРУППЫ уже стоит занятие в это время!', 'danger')
+            elif '_classroom_time_uc' in error_text:
+                flash('Ошибка: Эта АУДИТОРИЯ уже занята в это время!', 'danger')
+            else:
+                flash('Ошибка: Такое занятие уже существует или нарушает правила уникальности.', 'danger')
+
+    return render_template('schedule_form.html', form=form, title="Добавить занятие")

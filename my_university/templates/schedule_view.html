@@ -1,46 +1,148 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }}{% endblock %}
-
 {% block content %}
-<h2 class="mb-4">{{ title }}</h2>
-
-{% if schedules %}
-    <table class="table table-striped table-hover table-bordered">
-        <thead class="table-dark">
-            <tr>
-                <th>День</th>
-                <th>Время</th>
-                <th>Предмет</th>
-                <th>Тип</th>
-                <th>Группа</th>
-                <th>Преподаватель</th>
-                <th>Аудитория</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in schedules %}
-            <tr>
-                <td class="fw-bold">{{ days[item.day_of_week] }}</td>
-                <td>
-                    {{ item.time_slot.time_start.strftime('%H:%M') }} -
-                    {{ item.time_slot.time_end.strftime('%H:%M') }}
-                </td>
-                <td>{{ item.subject.subject_name }}</td>
-                <td><span class="badge bg-secondary">{{ item.lesson_type.lesson_type_name }}</span></td>
-                <td>{{ item.study_group.group_name }}</td>
-                <td>{{ item.teacher.full_name }}</td>
-                <td>{{ item.classroom.class_name }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <div class="alert alert-info">Расписание пока пусто.</div>
-{% endif %}
 
 {% if current_user.user_type_ref.type_name == 'admin' %}
-    <a href="/schedule/manage" class="btn btn-warning mt-3">Редактировать расписание</a>
+<div class="card mb-4 bg-light border-0 shadow-sm">
+    <div class="card-body py-3">
+        <form action="/schedule" method="GET" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <span class="fw-bold text-secondary">Показать расписание:</span>
+            </div>
+
+            <div class="col-auto">
+                <select name="group_id" class="form-select"
+                        onchange="this.form.teacher_id.value=''; this.form.submit()">
+                    <option value="" disabled {% if not target_group_id %}selected{% endif %}>-- Выберите группу --
+                    </option>
+                    {% for g in all_groups %}
+                    <option value="{{ g.group_id }}" {% if target_group_id== g.group_id %}selected{% endif %}>
+                        {{ g.group_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto text-muted small">или</div>
+
+            <div class="col-auto">
+                <select name="teacher_id" class="form-select"
+                        onchange="this.form.group_id.value=''; this.form.submit()">
+                    <option value="" disabled {% if not target_teacher_id %}selected{% endif %}>-- Выберите
+                        преподавателя --
+                    </option>
+                    {% for t in all_teachers %}
+                    <option value="{{ t.teacher_id }}" {% if target_teacher_id== t.teacher_id %}selected{% endif %}>
+                        {{ t.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto ms-auto">
+                <a href="/schedule" class="btn btn-outline-secondary btn-sm">Сбросить</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-primary">{{ title }}</h2>
+
+    <div class="btn-group">
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered text-center align-middle shadow-sm bg-white">
+        <thead class="table-dark">
+        <tr>
+            <th style="width: 10%">Время</th>
+            {% for day_num, day_name in days.items() %}
+            <th style="width: 15%">{{ day_name }}</th>
+            {% endfor %}
+        </tr>
+        </thead>
+        <tbody>
+        {% for slot in time_slots %}
+        <tr>
+            <td class="bg-light fw-bold text-secondary">
+                <div class="small">{{ slot.time_slot_name }}</div>
+                <div style="font-size: 0.75rem;">
+                    {{ slot.time_start.strftime('%H:%M') }} - {{ slot.time_end.strftime('%H:%M') }}
+                </div>
+            </td>
+
+            {% for day_num in days.keys() %}
+            {% set lesson = grid[day_num].get(slot.time_slot_id) %}
+
+            <td class="position-relative p-0">
+                {% if lesson %}
+                <div class="p-2 h-100 w-100 table-primary" style="min-height: 80px;">
+                    <div class="fw-bold text-primary">{{ lesson.subject.subject_name }}</div>
+
+                    <div class="badge bg-info text-dark mb-1">{{ lesson.lesson_type.lesson_type_name }}</div>
+
+                    <div class="small bg-white border rounded d-inline-block px-1 mx-1">
+                        Aуд. {{ lesson.classroom.class_name }}
+                    </div>
+
+                    <div class="small text-muted mt-1 fst-italic">
+                        {% if target_group_id %}
+                        {{ lesson.teacher.full_name }}
+                        {% else %}
+                        {{ lesson.study_group.group_name }}
+                        {% endif %}
+                    </div>
+
+                    {% if current_user.user_type_ref.type_name == 'admin' %}
+                    <div class="position-absolute top-0 end-0 p-1">
+
+                        <a href="/schedule/{{ lesson.schedule_id }}/edit"
+                           class="btn btn-warning btn-sm py-0 px-1 m-1 border-0"
+                           style="line-height: 1; font-size: 0.8rem;" title="Редактировать">
+                            ✎
+                        </a>
+
+                        <form action="/schedule/{{ lesson.schedule_id }}/delete" method="POST" class="d-inline"
+                              onsubmit="return confirm('Вы уверены, что хотите отменить это занятие?');">
+                            <button type="submit" class="btn btn-danger btn-sm py-0 px-1 m-1 border-0"
+                                    style="line-height: 1; font-size: 0.8rem;" title="Удалить">×
+                            </button>
+                        </form>
+
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+
+                <div class="position-relative h-100 w-100 d-flex align-items-center justify-content-center"
+                     style="min-height: 80px;">
+                    <span class="text-muted small">-</span>
+
+                    {% if current_user.user_type_ref.type_name == 'admin' and target_group_id %}
+                    <a href="/schedule/new?group_id={{ target_group_id }}&day={{ day_num }}&slot={{ slot.time_slot_id }}"
+                       class="btn btn-outline-success btn-sm position-absolute top-50 start-50 translate-middle"
+                       style="opacity: 0.3; --bs-btn-hover-opacity: 1;"
+                       title="Добавить занятие сюда">
+                        +
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not grid and (target_group_id or target_teacher_id) %}
+<div class="alert alert-info text-center mt-3">
+    Расписание на эту неделю пусто.
+</div>
 {% endif %}
 
 {% endblock %}
