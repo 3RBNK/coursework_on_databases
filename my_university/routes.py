@@ -1,4 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file, request
+import csv
+import json
+import io
+from flask import Blueprint, render_template, redirect, url_for, flash, abort, send_file, request, Response, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -868,3 +871,136 @@ def schedule_create():
                 flash('Ошибка: Такое занятие уже существует или нарушает правила уникальности.', 'danger')
 
     return render_template('schedule_form.html', form=form, title="Добавить занятие")
+
+
+@bp.route('/schedule/export/csv')
+@login_required
+def schedule_export_csv():
+    group_id = request.args.get('group_id', type=int)
+    teacher_id = request.args.get('teacher_id', type=int)
+
+    if not group_id and not teacher_id:
+        flash('Выберите группу или преподавателя для экспорта!', 'warning')
+        return redirect(url_for('main.schedule_view'))
+
+    query = db_session.query(Schedule).join(TimeSlot).join(Subject).join(Classroom).join(LessonType)
+
+    filename = "schedule"
+    if group_id:
+        query = query.filter(Schedule.study_group_id == group_id)
+        filename = f"schedule_group_{group_id}"
+    elif teacher_id:
+        query = query.filter(Schedule.teacher_id == teacher_id)
+        filename = f"schedule_teacher_{teacher_id}"
+
+    items = query.order_by(Schedule.day_of_week, TimeSlot.time_start).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(['Day', 'Time', 'Subject', 'Type', 'Room', 'Group', 'Teacher'])
+
+    days_map = {1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ', 6: 'СБ'}
+
+    for item in items:
+        writer.writerow([
+            days_map.get(item.day_of_week, str(item.day_of_week)),
+            f"{item.time_slot.time_start.strftime('%H:%M')} - {item.time_slot.time_end.strftime('%H:%M')}",
+            item.subject.subject_name,
+            item.lesson_type.lesson_type_name,
+            item.classroom.class_name,
+            item.study_group.group_name,
+            item.teacher.full_name
+        ])
+
+    output.seek(0)
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={filename}.csv"}
+    )
+
+
+@bp.route('/schedule/export/json')
+@login_required
+def schedule_export_json():
+    group_id = request.args.get('group_id', type=int)
+    teacher_id = request.args.get('teacher_id', type=int)
+
+    if not group_id and not teacher_id:
+        flash('Выберите группу или преподавателя!', 'warning')
+        return redirect(url_for('main.schedule_view'))
+
+    query = db_session.query(Schedule).join(TimeSlot).join(Subject)
+
+    filename = "schedule"
+    if group_id:
+        query = query.filter(Schedule.study_group_id == group_id)
+        filename = f"schedule_group_{group_id}"
+    elif teacher_id:
+        query = query.filter(Schedule.teacher_id == teacher_id)
+        filename = f"schedule_teacher_{teacher_id}"
+
+    items = query.order_by(Schedule.day_of_week, TimeSlot.time_start).all()
+
+    data = []
+    days_map = {1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота'}
+
+    for item in items:
+        data.append({
+            'day_of_week': days_map.get(item.day_of_week),
+            'time_start': item.time_slot.time_start.strftime('%H:%M'),
+            'time_end': item.time_slot.time_end.strftime('%H:%M'),
+            'subject': item.subject.subject_name,
+            'type': item.lesson_type.lesson_type_name,
+            'classroom': item.classroom.class_name,
+            'group': item.study_group.group_name,
+            'teacher': item.teacher.full_name
+        })
+
+    response = make_response(json.dumps(data, ensure_ascii=False, indent=4))
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}.json"
+    response.headers["Content-Type"] = "application/json; charset=utf-8"
+    return response
+
+
+@bp.route('/curriculums/<int:curr_id>/export/csv')
+@login_required
+def curriculum_export_csv(curr_id):
+    if current_user.user_type_ref.type_name != 'admin':
+        abort(403)
+
+    curriculum = db_session.query(Curriculum).get(curr_id)
+    if not curriculum:
+        abort(404)
+
+    details = db_session.query(CurriculumDetail) \
+        .filter_by(curriculum_id=curr_id) \
+        .order_by(CurriculumDetail.semester, CurriculumDetail.subject_id).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(['Учебный план:', curriculum.education_level])
+    writer.writerow(['Форма обучения:', curriculum.education_form.education_form_name])
+    writer.writerow(['Год утверждения:', curriculum.approval_year])
+    writer.writerow([])  # Пустая строка
+
+    writer.writerow(['Семестр', 'Предмет', 'Часы', 'Тип аттестации'])
+
+    for det in details:
+        writer.writerow([
+            det.semester,
+            det.subject.subject_name,
+            det.hours_lecture,
+            det.assessment_type.assessment_type_name
+        ])
+
+    filename = f"curriculum_{curr_id}"
+
+    output.seek(0)
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={filename}.csv"}
+    )

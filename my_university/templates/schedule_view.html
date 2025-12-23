@@ -11,14 +11,12 @@
             </div>
 
             <div class="col-auto">
-                <select name="group_id" class="form-select"
-                        onchange="this.form.teacher_id.value=''; this.form.submit()">
-                    <option value="" disabled {% if not target_group_id %}selected{% endif %}>-- Выберите группу --
-                    </option>
+                <select name="group_id" class="form-select" onchange="this.form.teacher_id.value=''; this.form.submit()">
+                    <option value="" disabled {% if not target_group_id %}selected{% endif %}>-- Выберите группу --</option>
                     {% for g in all_groups %}
-                    <option value="{{ g.group_id }}" {% if target_group_id== g.group_id %}selected{% endif %}>
-                        {{ g.group_name }}
-                    </option>
+                        <option value="{{ g.group_id }}" {% if target_group_id == g.group_id %}selected{% endif %}>
+                            {{ g.group_name }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -26,15 +24,12 @@
             <div class="col-auto text-muted small">или</div>
 
             <div class="col-auto">
-                <select name="teacher_id" class="form-select"
-                        onchange="this.form.group_id.value=''; this.form.submit()">
-                    <option value="" disabled {% if not target_teacher_id %}selected{% endif %}>-- Выберите
-                        преподавателя --
-                    </option>
+                <select name="teacher_id" class="form-select" onchange="this.form.group_id.value=''; this.form.submit()">
+                    <option value="" disabled {% if not target_teacher_id %}selected{% endif %}>-- Выберите преподавателя --</option>
                     {% for t in all_teachers %}
-                    <option value="{{ t.teacher_id }}" {% if target_teacher_id== t.teacher_id %}selected{% endif %}>
-                        {{ t.full_name }}
-                    </option>
+                        <option value="{{ t.teacher_id }}" {% if target_teacher_id == t.teacher_id %}selected{% endif %}>
+                            {{ t.full_name }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -48,93 +43,95 @@
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="text-primary">{{ title }}</h2>
+    <h2 class="text-primary m-0">{{ title }}</h2>
 
-    <div class="btn-group">
+    {% if target_group_id or target_teacher_id %}
+    <div class="btn-group shadow-sm">
+        {% if target_group_id %}
+            <a href="/schedule/export/csv?group_id={{ target_group_id }}" class="btn btn-outline-success btn-sm">
+                CSV
+            </a>
+            <a href="/schedule/export/json?group_id={{ target_group_id }}" class="btn btn-outline-dark btn-sm">
+                JSON
+            </a>
+        {% elif target_teacher_id %}
+            <a href="/schedule/export/csv?teacher_id={{ target_teacher_id }}" class="btn btn-outline-success btn-sm">
+                CSV
+            </a>
+            <a href="/schedule/export/json?teacher_id={{ target_teacher_id }}" class="btn btn-outline-dark btn-sm">
+                JSON
+            </a>
+        {% endif %}
     </div>
+    {% endif %}
 </div>
 
 <div class="table-responsive">
     <table class="table table-bordered text-center align-middle shadow-sm bg-white">
         <thead class="table-dark">
-        <tr>
-            <th style="width: 10%">Время</th>
-            {% for day_num, day_name in days.items() %}
-            <th style="width: 15%">{{ day_name }}</th>
-            {% endfor %}
-        </tr>
+            <tr>
+                <th style="width: 10%">Время</th>
+                {% for day_num, day_name in days.items() %}
+                    <th style="width: 15%">{{ day_name }}</th>
+                {% endfor %}
+            </tr>
         </thead>
         <tbody>
-        {% for slot in time_slots %}
-        <tr>
-            <td class="bg-light fw-bold text-secondary">
-                <div class="small">{{ slot.time_slot_name }}</div>
-                <div style="font-size: 0.75rem;">
-                    {{ slot.time_start.strftime('%H:%M') }} - {{ slot.time_end.strftime('%H:%M') }}
-                </div>
-            </td>
-
-            {% for day_num in days.keys() %}
-            {% set lesson = grid[day_num].get(slot.time_slot_id) %}
-
-            <td class="position-relative p-0">
-                {% if lesson %}
-                <div class="p-2 h-100 w-100 table-primary" style="min-height: 80px;">
-                    <div class="fw-bold text-primary">{{ lesson.subject.subject_name }}</div>
-
-                    <div class="badge bg-info text-dark mb-1">{{ lesson.lesson_type.lesson_type_name }}</div>
-
-                    <div class="small bg-white border rounded d-inline-block px-1 mx-1">
-                        Aуд. {{ lesson.classroom.class_name }}
+            {% for slot in time_slots %}
+            <tr>
+                <td class="bg-light fw-bold text-secondary">
+                    <div class="small">{{ slot.time_slot_name }}</div>
+                    <div style="font-size: 0.75rem;">
+                        {{ slot.time_start.strftime('%H:%M') }} - {{ slot.time_end.strftime('%H:%M') }}
                     </div>
+                </td>
 
-                    <div class="small text-muted mt-1 fst-italic">
-                        {% if target_group_id %}
-                        {{ lesson.teacher.full_name }}
+                {% for day_num in days.keys() %}
+                    {% set lesson = grid[day_num].get(slot.time_slot_id) %}
+
+                    <td class="position-relative p-0">
+                        {% if lesson %}
+                            <div class="p-2 h-100 w-100 table-primary" style="min-height: 80px;">
+                                <div class="fw-bold text-primary">{{ lesson.subject.subject_name }}</div>
+                                <div class="badge bg-info text-dark mb-1">{{ lesson.lesson_type.lesson_type_name }}</div>
+                                <div class="small bg-white border rounded d-inline-block px-1 mx-1">
+                                    Aуд. {{ lesson.classroom.class_name }}
+                                </div>
+                                <div class="small text-muted mt-1 fst-italic">
+                                    {% if target_group_id %}
+                                        {{ lesson.teacher.full_name }}
+                                    {% else %}
+                                        {{ lesson.study_group.group_name }}
+                                    {% endif %}
+                                </div>
+
+                                {% if current_user.user_type_ref.type_name == 'admin' %}
+                                    <div class="position-absolute top-0 end-0 p-1">
+                                        <a href="/schedule/{{ lesson.schedule_id }}/edit" class="btn btn-warning btn-sm py-0 px-1 m-1 border-0" style="line-height: 1; font-size: 0.8rem;" title="Редактировать">✎</a>
+                                        <form action="/schedule/{{ lesson.schedule_id }}/delete" method="POST" class="d-inline" onsubmit="return confirm('Вы уверены?');">
+                                            <button type="submit" class="btn btn-danger btn-sm py-0 px-1 m-1 border-0" style="line-height: 1; font-size: 0.8rem;" title="Удалить">×</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            </div>
                         {% else %}
-                        {{ lesson.study_group.group_name }}
+                            <!-- Пустая пара -->
+                            <div class="position-relative h-100 w-100 d-flex align-items-center justify-content-center" style="min-height: 80px;">
+                                <span class="text-muted small">-</span>
+                                {% if current_user.user_type_ref.type_name == 'admin' and target_group_id %}
+                                    <a href="/schedule/new?group_id={{ target_group_id }}&day={{ day_num }}&slot={{ slot.time_slot_id }}"
+                                       class="btn btn-outline-success btn-sm position-absolute top-50 start-50 translate-middle"
+                                       style="opacity: 0.3; --bs-btn-hover-opacity: 1;"
+                                       title="Добавить занятие">
+                                        +
+                                    </a>
+                                {% endif %}
+                            </div>
                         {% endif %}
-                    </div>
-
-                    {% if current_user.user_type_ref.type_name == 'admin' %}
-                    <div class="position-absolute top-0 end-0 p-1">
-
-                        <a href="/schedule/{{ lesson.schedule_id }}/edit"
-                           class="btn btn-warning btn-sm py-0 px-1 m-1 border-0"
-                           style="line-height: 1; font-size: 0.8rem;" title="Редактировать">
-                            ✎
-                        </a>
-
-                        <form action="/schedule/{{ lesson.schedule_id }}/delete" method="POST" class="d-inline"
-                              onsubmit="return confirm('Вы уверены, что хотите отменить это занятие?');">
-                            <button type="submit" class="btn btn-danger btn-sm py-0 px-1 m-1 border-0"
-                                    style="line-height: 1; font-size: 0.8rem;" title="Удалить">×
-                            </button>
-                        </form>
-
-                    </div>
-                    {% endif %}
-                </div>
-                {% else %}
-
-                <div class="position-relative h-100 w-100 d-flex align-items-center justify-content-center"
-                     style="min-height: 80px;">
-                    <span class="text-muted small">-</span>
-
-                    {% if current_user.user_type_ref.type_name == 'admin' and target_group_id %}
-                    <a href="/schedule/new?group_id={{ target_group_id }}&day={{ day_num }}&slot={{ slot.time_slot_id }}"
-                       class="btn btn-outline-success btn-sm position-absolute top-50 start-50 translate-middle"
-                       style="opacity: 0.3; --bs-btn-hover-opacity: 1;"
-                       title="Добавить занятие сюда">
-                        +
-                    </a>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </td>
+                    </td>
+                {% endfor %}
+            </tr>
             {% endfor %}
-        </tr>
-        {% endfor %}
         </tbody>
     </table>
 </div>

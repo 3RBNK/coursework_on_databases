@@ -1,13 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="mb-4">
-    <h3>Учебный план: <span class="text-primary">{{ curriculum.education_level }}</span></h3>
-    <p class="text-muted">
-        Форма: {{ curriculum.education_form.education_form_name }} |
-        Утвержден: {{ curriculum.approval_year }}
-    </p>
-    <a href="/curriculums" class="btn btn-outline-secondary btn-sm">Назад к списку</a>
+
+<div class="mb-4 d-flex justify-content-between align-items-start">
+    <div>
+        <h3>Учебный план: <span class="text-primary">{{ curriculum.education_level }}</span></h3>
+        <p class="text-muted mb-2">
+            Форма: {{ curriculum.education_form.education_form_name }} |
+            Утвержден: {{ curriculum.approval_year }}
+        </p>
+        <a href="/curriculums" class="btn btn-outline-secondary btn-sm">← Назад к списку</a>
+    </div>
+
+    <div>
+        <a href="/curriculums/{{ curriculum.curriculum_id }}/export/csv" class="btn btn-success">
+            Экспорт в CSV
+        </a>
+    </div>
 </div>
 
 <div class="row">
